@@ -11,7 +11,7 @@ def sreplace(d, text):
     regex = re.compile("(%s)" % "|".join(map(re.escape, d.keys())))
     return regex.sub(lambda x: d[x.string[x.start():x.end()]], text)
 
-code = u"""jmp .9
+code = u"""jmp .3
 end:  // Set end tag
 halt
 print Hello .10
@@ -33,7 +33,7 @@ print the .32 following .32 questions: .10
 print (Arrays .32 start .32 at .32 zero) .10
 print (Keep .32 in .32 mind .32 Coredumped's .32 lore) .10
 print Que .32 las .32 preguntas .32 van .32 sobre .32 nosotros .32 vaya .10 .10
-"""  # ✔ ❌ ❓ ❗ ❔ ❕ ➕ ➖ ➗ ✖ ➡ 🚀 ‼ ⁉ 🇪🇸 ↩ ↪ ⏩ ⏪ 📲 🔋 🔙 🔚 🔛 🔜 🔝 🅰 🅾
+"""  # ✔ ❌ ❓ ❗ ❔ ❕ ➕ ➖ ➗ ✖ ➡ 🚀 ‼ ⁉ 🇪🇸 ↩ ↪ ⏩ ⏪ 📲 🔋 🔙 🔚 🔛 🔜 🔝 🅰 🅾 👊 💫 📡
 
 table = {"; ": "\n", ";": "\n", ":1": "📒", ":2": "📓",
          ":3": "📔", ":4": "📕", ":5": "📖",
@@ -41,58 +41,84 @@ table = {"; ": "\n", ";": "\n", ":1": "📒", ":2": "📓",
 
 with open("main.bin", "w") as f:
     tags = {}
+    count = 0
     for line in sreplace(table, code).translate(table).splitlines():
         if not line:
             f.write("🔜\n")  # 128284
+            count += 2
             continue
         pos = f.tell()
         args = [chr(int(i[1:])) if i.startswith(".") and len(i) != 1 else i
                 for i in line.split(" ")]
         if args[0] == "//" or args[0:2] == ["", "//"]:
             continue
-        print(pos, args)
+        print(count, pos, args)
         if args[0] == "halt":  # 0
             f.write("🔚")  # 128282
+            count += 1
         elif args[0] == "push":  # 2 a
             f.write("📩")  # 128233
             f.write(args[1])
+            count += 2
         elif args[0] == "eq":  # 4 a b c
             f.write("👬")  # 128108
             f.write(args[1])
             f.write(args[2])
             f.write(args[3])
+            count += 4
         elif args[0] == "jmp":  # 6 a
             f.write("🚀")  # 128640
             f.write(tags.pop(args[1], args[1]))
+            count += 2
         elif args[0] == "jt":  # 7 a b
             f.write("❓")  # 10067
             f.write(args[1])
             f.write(tags.pop(args[2], args[2]))
+            count += 3
         elif args[0] == "jf":  # 8 a b
             f.write("❗")  # 10071
             f.write(args[1])
             f.write(tags.pop(args[2], args[2]))
+            count += 3
         elif args[0] == "and":  # 12 a b c
             f.write("🅰")  # 127344
             f.write(args[1])
             f.write(args[2])
             f.write(args[3])
+            count += 4
+        elif args[0] == "or":  # 13 a b c
+            f.write("🅾")  # 127358
+            f.write(args[1])
+            f.write(args[2])
+            f.write(args[3])
+            count += 4
+        elif args[0] == "call":  # 17 a
+            f.write("📡")  # 128225
+            f.write(args[1])
+            count += 2
+        elif args[0] == "ret":  # 18
+            f.write("💫")  # 128171
+            count += 1
         elif args[0] == "out":  # 19 a
             f.write("📺")  # 128250
             f.write(args[1])
+            count += 2
         elif args[0] == "in":  # 20 a
             f.write("🎹")  # 127929
             f.write(args[1])
+            count += 2
         # MACROS
         elif args[0] == "print":
             for i in "".join(args[1:]):
                 f.write("📺")  # 128250
                 f.write(i)
+                count += 2
         # TAG
         elif args[0][-1] == ":":
-            tags[args[0][:-1]] = chr(pos)
+            tags[args[0][:-1]] = chr(count)
         else:
             print("unrecognized instruction")
+    print(count, f.tell())
 
 
 """== opcode listing ==

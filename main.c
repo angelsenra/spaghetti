@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <locale.h>
-#define read get(f, reg)
+#include <errno.h>
+#define read get(data[pos++], reg)
 
-wint_t get(FILE *f, wint_t *reg) {
-    wint_t data;
-    switch (data = fgetwc(f)) {
+wint_t get(wchar_t data, wchar_t *reg) {
+    switch (data) {
         case 128210:  // 📒
             return reg[0];
         case 128211:  // 📓
@@ -28,54 +28,82 @@ wint_t get(FILE *f, wint_t *reg) {
     return data;
 }
 
-void put(FILE *f, wint_t *reg, wint_t key, wint_t value) {
-    // printf("%u->%u", key, value);
+void put(wchar_t *data, wchar_t *reg, wchar_t key, wchar_t value) {
     switch (key) {
         case 128210:  // 📒
             reg[0] = value;
-            return;
+            break;
         case 128211:  // 📓
             reg[1] = value;
-            return;
+            break;
         case 128212:  // 📔
             reg[2] = value;
-            return;
+            break;
         case 128213:  // 📕
             reg[3] = value;
-            return;
+            break;
         case 128214:  // 📖
             reg[4] = value;
-            return;
+            break;
         case 128215:  // 📗
             reg[5] = value;
-            return;
+            break;
         case 128216:  // 📘
             reg[6] = value;
-            return;
+            break;
         case 128217:  // 📙
             reg[7] = value;
-            return;
+            break;
+        /* This should be done using wmem: 16 a b
+        default:
+            data[key] = value;*/
     }
-    fpos_t pos;
-    fgetpos(f, &pos);
-    fseek(f, key, SEEK_SET);
-    fputwc(value, f);
-    fsetpos(f, &pos);
 }
 
-int main () {
-    wint_t data, a, b, c, stack[1024], reg[8];
-    int stackOffset = 0;
-    long pos;
-
+wchar_t * open_file(const char *name) {
     FILE *f;
-    char *locale = setlocale(LC_ALL, "en_US.utf8");
-    f = fopen("main.bin", "r");
-    pos = ftell(f);
+    printf("Opening the file\n");
+    if ((!setlocale(LC_ALL, "en_US.utf8")) ||
+       (NULL == (f = fopen(name, "rb")))) {
+        perror("Could not set the locale or open the file\n");
+        exit(EXIT_FAILURE);
+    }
+    fseek(f, 0, SEEK_END);
+    size_t fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *string = malloc(fsize);
+    fread(string, fsize, 1, f);
+    fclose(f);
+
+    size_t offset = 0, len = 0;
+    while (string[offset] != 0) {
+        offset += mblen(string + offset, MB_CUR_MAX);
+        len++;
+    }
+    printf("[%lu]b [%lu]instructions\n", fsize, len);
+
+    wchar_t *data = malloc((len + 1) * sizeof(wchar_t));
+    offset = 0; len = 0;
+    while (string[offset] != 0) {
+        offset += mbtowc(data + len, string + offset, MB_CUR_MAX);
+        len++;
+    }
+    free(string);
+    data[len] = 0;
+    return data;
+}
+
+int main() {
+    wchar_t ins, a, b, c, stack[1024], reg[8], *data;
+    int stackOffset = 0;
+    size_t pos = 0;
+
+    data = open_file("main.bin");
+
     printf("->Starting...\n");
-    while ((data = read) != WEOF) {
-        // printf(".>");putwchar(data);printf("[%u](%lu)\n", data, pos);
-        switch (data) {
+    while (ins = data[pos++]) {
+        switch (ins) {
             case 128282:  // 🔚 stop execution and terminate the program
                 fprintf(stderr, "X>Forced program exit\n");
                 goto exit_label;
@@ -83,49 +111,67 @@ int main () {
                 stack[stackOffset++] = read;
                 break;
             case 128108:  // 👬 set <a> to 1 if <b> is equal to <c>; else 0
-                a = fgetwc(f);
+                a = data[pos++];
                 if (read == read)
-                    put(f, reg, a, 1);
+                    put(data, reg, a, 1);
                 else
-                    put(f, reg, a, 0);
+                    put(data, reg, a, 0);
                 break;
             case 128640:  // 🚀 jump to <a>
-                fseek(f, read, SEEK_SET);
+                pos = read;
                 break;
             case 10067:  // ❓ if <a> is nonzero, jump to <b>
                 if (read)
-                    fseek(f, read, SEEK_SET);
+                    pos = read;
                 break;
             case 10071:  // ❗ if <a> is zero, jump to <b>
                 if (!read)
-                    fseek(f, read, SEEK_SET);
+                    pos = read;
                 else
-                    read;
+                    pos++;
                 break;
             case 127344:  // 🅰 stores into <a> the bitwise and of <b> and <c>
-                a = fgetwc(f);
+                a = data[pos++];
                 b = read;
                 c = read;
-                put(f, reg, a, b & c);
+                put(data, reg, a, b & c);
+                break;
+            case 127358:  // 🅾 stores into <a> the bitwise or of <b> and <c>
+                a = data[pos++];
+                b = read;
+                c = read;
+                put(data, reg, a, b | c);
+                break;
+            case 128225:  // 📡 write the address of the next instruction to the stack and jump to <a>
+                a = read;
+                stack[stackOffset++] = pos;
+                pos = a;
+                break;
+            case 128171:  // 💫 remove the top element from the stack and jump to it; empty stack = halt
+                if (!stackOffset) {
+                    fprintf(stderr, "X>Tried return with empty stack\n");
+                    goto exit_label;
+                }
+                pos = stack[--stackOffset];
                 break;
             case 128250:  // 📺 write the character <a> to the terminal
                 putwchar(read);
                 break;
             case 127929:  // 🎹 read a character from the terminal to <a>
-                put(f, reg, fgetwc(f), getwchar());
+                put(data, reg, data[pos++], getwchar());
                 break;
             case 128284:  // 🔜 ignore next character
-                read;
+                pos++;
                 break;
             default:
                 fprintf(stderr, "X>Unrecognized operation\n");
                 fprintf(stderr, "X>[%u](%lu)\n", data, pos);
-                exit(-1);
+                free(data);
+                exit(EXIT_FAILURE);
         }
-        pos = ftell(f);
     }
-    fclose(f);
     exit_label:
+    free(data);
     printf("->Finished processing the binary\n");
     return EXIT_SUCCESS;
 }
