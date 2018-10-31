@@ -54,9 +54,6 @@ void put(wchar_t *data, wchar_t *reg, wchar_t key, wchar_t value) {
         case 128217:  // 📙
             reg[7] = value;
             break;
-        /* This should be done using wmem: 16 a b
-        default:
-            data[key] = value;*/
     }
 }
 
@@ -77,16 +74,25 @@ wchar_t * open_file(const char *name) {
     fclose(f);
 
     size_t offset = 0, len = 0;
-    while (string[offset] != 0) {
-        offset += mblen(string + offset, MB_CUR_MAX);
+    while (offset < fsize) {
+        if (!string[offset])
+            offset++;
+        else
+            offset += mblen(string + offset, MB_CUR_MAX);
         len++;
     }
-    printf("[%lu]b [%lu]instructions\n", fsize, len);
+    printf("%lu bytes, %lu instructions\n", fsize, len);
 
     wchar_t *data = malloc((len + 1) * sizeof(wchar_t));
+    fsize = len;
     offset = 0; len = 0;
-    while (string[offset] != 0) {
-        offset += mbtowc(data + len, string + offset, MB_CUR_MAX);
+    while (len < fsize) {
+        if (!string[offset]) {
+            offset++;
+            data[len] = 0;
+        }
+        else
+            offset += mbtowc(data + len, string + offset, MB_CUR_MAX);
         len++;
     }
     free(string);
@@ -103,12 +109,26 @@ int main() {
 
     printf("->Starting...\n");
     while (ins = data[pos++]) {
+        // printf("D>[%u](%lu)\n", ins, pos - 1);
         switch (ins) {
-            case 128282:  // 🔚 stop execution and terminate the program
+            case 127755:  // 🌋 stop execution and terminate the program
                 fprintf(stderr, "X>Forced program exit\n");
                 goto exit_label;
-            case 128233:  // 📩 push <a> to the stack
+            case 128233:  // 📩 set register <a> to the value of <b>
+                a = data[pos++];
+                put(data, reg, a, read);
+                break;
+            case 128229:  // 📥 push <a> to the stack
                 stack[stackOffset++] = read;
+                break;
+            case 128228:  // 📤 remove the top element from the stack and write it into <a>; empty stack = error
+                if (!stackOffset) {
+                    fprintf(stderr, "X>Tried return with empty stack\n");
+                    goto exit_label;
+                }
+                a = data[pos++];
+                b = stack[--stackOffset];
+                put(data, reg, a, b);
                 break;
             case 128108:  // 👬 set <a> to 1 if <b> is equal to <c>; else 0
                 a = data[pos++];
@@ -123,12 +143,20 @@ int main() {
             case 10067:  // ❓ if <a> is nonzero, jump to <b>
                 if (read)
                     pos = read;
+                else
+                    pos++;
                 break;
             case 10071:  // ❗ if <a> is zero, jump to <b>
                 if (!read)
                     pos = read;
                 else
                     pos++;
+                break;
+            case 10133:  // ➕ assign into <a> the sum of <b> and <c> (modulo 128000)
+                a = data[pos++];
+                b = read;
+                c = read;
+                put(data, reg, a, (b + c) % 128000);
                 break;
             case 127344:  // 🅰 stores into <a> the bitwise and of <b> and <c>
                 a = data[pos++];
@@ -141,6 +169,16 @@ int main() {
                 b = read;
                 c = read;
                 put(data, reg, a, b | c);
+                break;
+            case 128220:  // 📜 read memory at address <b> and write it to <a>
+                a = data[pos++];
+                b = read;
+                put(data, reg, a, data[b]);
+                break;
+            case 128221:  // 📝 write the value from <b> into memory at address <a>
+                a = data[pos++];
+                b = read;
+                data[a] = b;
                 break;
             case 128225:  // 📡 write the address of the next instruction to the stack and jump to <a>
                 a = read;
@@ -163,9 +201,11 @@ int main() {
             case 128284:  // 🔜 ignore next character
                 pos++;
                 break;
+            case 9203:  // ⏳ no operation
+                break;
             default:
                 fprintf(stderr, "X>Unrecognized operation\n");
-                fprintf(stderr, "X>[%u](%lu)\n", data, pos);
+                fprintf(stderr, "X>[%u](%lu)\n", ins, pos - 1);
                 free(data);
                 exit(EXIT_FAILURE);
         }

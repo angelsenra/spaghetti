@@ -5,120 +5,109 @@ import re
 https://apps.timwhitlock.info/emoji/tables/unicode
 https://www.branah.com/unicode-converter
 """
+REP_TABLE = {"; ": "\n", ";": "\n", ":1": "📒", ":2": "📓",
+             ":3": "📔", ":4": "📕", ":5": "📖",
+             ":6": "📗", ":7": "📘", ":8": "📙"}
+INS_SIZE = {"halt": 1, "set": 3, "push": 2, "pop": 2, "eq": 4, "gt": 4,
+            "jmp": 2, "jt": 3, "jf": 3, "add": 4, "mult": 4, "mod": 4,
+            "and": 4, "or": 4, "not": 3, "rmem": 3, "wmem": 3,
+            "call": 2, "ret": 1, "out": 2, "in": 2, "noop": 1}
+INS_TABLE = {
+    "halt": "🌋",  # 127755
+    "set": "📩",  # 128233
+    "push": "📥",  # 128229
+    "pop": "📤",  # 128228
+    "eq": "👬",  # 128108
+    "jmp": "🚀",  # 128640
+    "jt": "❓",  # 10067
+    "jf": "❗",  # 10071
+    "add": "➕",  # 10133
+    "and": "🅰",  # 127344
+    "or": "🅾",  # 127358
+    "rmem": "📜",  # 128220
+    "wmem": "📝",  # 128221
+    "call":  "📡",  # 128225
+    "ret":  "💫",  # 128171
+    "out":  "📺",  # 128250
+    "in":  "🎹",  # 127929
+    "noop":  "⏳"  # 9203
+}
+# ✔ ❌ ❓ ❗ ❔ ❕ ➕ ➖ ➗ ✖ ➡ 🚀 ‼ ⁉ 🇪🇸 ↩ ↪ ⏩ ⏪ 📲 🔋 🔙 🔚 🔛 🔜 🔝 🅰 🅾 👊 💫 📡 ⏳ ✏
+# 📜 📝
 
 
 def sreplace(d, text):
+    """Multiple string replace at one time using regex"""
     regex = re.compile("(%s)" % "|".join(map(re.escape, d.keys())))
     return regex.sub(lambda x: d[x.string[x.start():x.end()]], text)
 
-code = u"""jmp .3
-end:  // Set end tag
-halt
-print Hello .10
-print Do .32 you .32 think .32 you .32 can .32 guess .32 the .32 password? .10
-out >
-in :1;
-loop:  // Set loop tag
-in :8
-eq :8 :8 .10
-jf :8 loop;  // If input not /n then goto loop
-// print Answer: .32 :1 .10;
-and :8 Y y
-eq :8 :8 :1
-jf :8 end;  // If answer not y then goto end
-print That's .32 wonderful! .10 .10
-print The .32 password .32 is .32 formed .32 by .32 choosing .32
-print letters .32 from .32 the .32 answers .32 to .32
-print the .32 following .32 questions: .10
-print (Arrays .32 start .32 at .32 zero) .10
-print (Keep .32 in .32 mind .32 Coredumped's .32 lore) .10
-print Que .32 las .32 preguntas .32 van .32 sobre .32 nosotros .32 vaya .10 .10
-"""  # ✔ ❌ ❓ ❗ ❔ ❕ ➕ ➖ ➗ ✖ ➡ 🚀 ‼ ⁉ 🇪🇸 ↩ ↪ ⏩ ⏪ 📲 🔋 🔙 🔚 🔛 🔜 🔝 🅰 🅾 👊 💫 📡
 
-table = {"; ": "\n", ";": "\n", ":1": "📒", ":2": "📓",
-         ":3": "📔", ":4": "📕", ":5": "📖",
-         ":6": "📗", ":7": "📘", ":8": "📙"}
+def nreplace(text):
+    """Replace .num with the unicode value of num"""
+    regex = re.compile(r"(\.\d+)")
+    return regex.sub(lambda x: chr(int(x.string[x.start() + 1:x.end()])), text)
 
-with open("main.bin", "w") as f:
+
+def process_tags(code):
+    """Return dict containing offset of each tag"""
     tags = {}
     count = 0
-    for line in sreplace(table, code).translate(table).splitlines():
-        if not line:
-            f.write("🔜\n")  # 128284
+    for ins in code.split(r"\n"):
+        if not ins:
             count += 2
             continue
-        pos = f.tell()
-        args = [chr(int(i[1:])) if i.startswith(".") and len(i) != 1 else i
-                for i in line.split(" ")]
-        if args[0] == "//" or args[0:2] == ["", "//"]:
-            continue
-        print(count, pos, args)
-        if args[0] == "halt":  # 0
-            f.write("🔚")  # 128282
-            count += 1
-        elif args[0] == "push":  # 2 a
-            f.write("📩")  # 128233
-            f.write(args[1])
-            count += 2
-        elif args[0] == "eq":  # 4 a b c
-            f.write("👬")  # 128108
-            f.write(args[1])
-            f.write(args[2])
-            f.write(args[3])
-            count += 4
-        elif args[0] == "jmp":  # 6 a
-            f.write("🚀")  # 128640
-            f.write(tags.pop(args[1], args[1]))
-            count += 2
-        elif args[0] == "jt":  # 7 a b
-            f.write("❓")  # 10067
-            f.write(args[1])
-            f.write(tags.pop(args[2], args[2]))
-            count += 3
-        elif args[0] == "jf":  # 8 a b
-            f.write("❗")  # 10071
-            f.write(args[1])
-            f.write(tags.pop(args[2], args[2]))
-            count += 3
-        elif args[0] == "and":  # 12 a b c
-            f.write("🅰")  # 127344
-            f.write(args[1])
-            f.write(args[2])
-            f.write(args[3])
-            count += 4
-        elif args[0] == "or":  # 13 a b c
-            f.write("🅾")  # 127358
-            f.write(args[1])
-            f.write(args[2])
-            f.write(args[3])
-            count += 4
-        elif args[0] == "call":  # 17 a
-            f.write("📡")  # 128225
-            f.write(args[1])
-            count += 2
-        elif args[0] == "ret":  # 18
-            f.write("💫")  # 128171
-            count += 1
-        elif args[0] == "out":  # 19 a
-            f.write("📺")  # 128250
-            f.write(args[1])
-            count += 2
-        elif args[0] == "in":  # 20 a
-            f.write("🎹")  # 127929
-            f.write(args[1])
-            count += 2
-        # MACROS
-        elif args[0] == "print":
-            for i in "".join(args[1:]):
-                f.write("📺")  # 128250
-                f.write(i)
-                count += 2
-        # TAG
-        elif args[0][-1] == ":":
-            tags[args[0][:-1]] = chr(count)
+        args = ins.split(r"\s")
+        arg = args[0]
+        if arg[0] == "$":  # Include the whole line
+            count += len(ins[1:].replace(r"\s", " ")) + 1
+        elif arg[-1] == ":":  # It is a tag
+            # print(arg, count)
+            tags[":" + arg[:-1]] = chr(count)
+        elif arg == "print":
+            count += len("".join(args[1:])) * 2
         else:
-            print("unrecognized instruction")
-    print(count, f.tell())
+            count += INS_SIZE[arg]
+    return tags
+
+
+def compile_code(_code, tags):
+    """Return list of unicode instructions"""
+    code = sreplace(tags, _code)
+    out = []
+    for ins in code.split(r"\n"):
+        if not ins:
+            out.append("🔜\n")  # 128284
+            continue
+        args = ins.split(r"\s")
+        arg = args[0]
+        if arg[0] == "$":  # Include the whole line
+            out.append(ins[1:].replace(r"\s", " ") + "\n")
+        elif arg[-1] == ":":  # It is a tag
+            # print(arg, len("".join(out)))
+            pass
+        elif arg == "print":
+            for i in "".join(args[1:]):
+                out.append(INS_TABLE["out"] + i)
+        else:
+            size = INS_SIZE[arg]
+            out.append(INS_TABLE[arg])
+            for i in range(1, size):
+                out.append(args[i])
+    return out
+
+
+def main():
+    with open("main.src", "r") as f:
+        _code = f.read()
+    _code = sreplace(REP_TABLE, _code)
+    _code = re.sub(r"(\n|[ ]+)//.*", "", _code)
+    _code = _code.replace("\n", "\\n").replace(" ", "\\s")
+    code = nreplace(_code)
+    tags = process_tags(code)
+    print("\n".join("%s -> %d" % (k, ord(v)) for k, v in tags.items()))
+    compiled = compile_code(code, tags)
+    with open("main.bin", "w") as f:
+        f.write("".join(compiled))
 
 
 """== opcode listing ==
@@ -167,3 +156,6 @@ in: 20 a
 noop: 21
   no operation
 """
+
+if __name__ == "__main__":
+    main()
