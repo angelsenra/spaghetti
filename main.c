@@ -4,60 +4,30 @@
 #include <wchar.h>
 #include <locale.h>
 #include <errno.h>
-#define read get(data[pos++], reg)
+#define read get(reg, data[pos++])
 
-wint_t get(wchar_t data, wchar_t *reg) {
-    switch (data) {
-        case 128210:  // 📒
-            return reg[0];
-        case 128211:  // 📓
-            return reg[1];
-        case 128212:  // 📔
-            return reg[2];
-        case 128213:  // 📕
-            return reg[3];
-        case 128214:  // 📖
-            return reg[4];
-        case 128215:  // 📗
-            return reg[5];
-        case 128216:  // 📘
-            return reg[6];
-        case 128217:  // 📙
-            return reg[7];
+wint_t
+get(wchar_t *reg, wchar_t data)
+{
+    if (128210 <= data && data <= 128217) {
+        return reg[data - 128210];
     }
-    return data;
-}
-
-void put(wchar_t *data, wchar_t *reg, wchar_t key, wchar_t value) {
-    switch (key) {
-        case 128210:  // 📒
-            reg[0] = value;
-            break;
-        case 128211:  // 📓
-            reg[1] = value;
-            break;
-        case 128212:  // 📔
-            reg[2] = value;
-            break;
-        case 128213:  // 📕
-            reg[3] = value;
-            break;
-        case 128214:  // 📖
-            reg[4] = value;
-            break;
-        case 128215:  // 📗
-            reg[5] = value;
-            break;
-        case 128216:  // 📘
-            reg[6] = value;
-            break;
-        case 128217:  // 📙
-            reg[7] = value;
-            break;
+    else {
+        return data;
     }
 }
 
-wchar_t * open_file(const char *name) {
+void
+put(wchar_t *reg, wchar_t key, wchar_t value)
+{
+    if (128210 <= key && key <= 128217) {
+        reg[key - 128210] = value;
+    }
+}
+
+wchar_t *
+open_file(const char *name)
+{
     FILE *f;
     printf("Opening the file\n");
     if ((!setlocale(LC_ALL, "en_US.utf8")) ||
@@ -100,12 +70,14 @@ wchar_t * open_file(const char *name) {
     return data;
 }
 
-int main() {
+int
+main()
+{
     wchar_t ins, a, b, c, stack[1024], reg[8], *data;
     int stackOffset = 0;
     size_t pos = 0;
 
-    data = open_file("main.bin");
+    data = open_file("bin");
 
     printf("->Starting...\n");
     while (ins = data[pos++]) {
@@ -116,7 +88,7 @@ int main() {
                 goto exit_label;
             case 128233:  // 📩 set register <a> to the value of <b>
                 a = data[pos++];
-                put(data, reg, a, read);
+                put(reg, a, read);
                 break;
             case 128229:  // 📥 push <a> to the stack
                 stack[stackOffset++] = read;
@@ -128,14 +100,14 @@ int main() {
                 }
                 a = data[pos++];
                 b = stack[--stackOffset];
-                put(data, reg, a, b);
+                put(reg, a, b);
                 break;
             case 128108:  // 👬 set <a> to 1 if <b> is equal to <c>; else 0
                 a = data[pos++];
                 if (read == read)
-                    put(data, reg, a, 1);
+                    put(reg, a, 1);
                 else
-                    put(data, reg, a, 0);
+                    put(reg, a, 0);
                 break;
             case 128640:  // 🚀 jump to <a>
                 pos = read;
@@ -152,28 +124,34 @@ int main() {
                 else
                     pos++;
                 break;
-            case 10133:  // ➕ assign into <a> the sum of <b> and <c> (modulo 128000)
+            case 10133:  // ➕ assign into <a> the sum of <b> and <c>
                 a = data[pos++];
                 b = read;
                 c = read;
-                put(data, reg, a, (b + c) % 128000);
+                put(reg, a, (b + c));
+                break;
+            case 10135:  // ➗ store into <a> the remainder of <b> divided by <c>
+                a = data[pos++];
+                b = read;
+                c = read;
+                put(reg, a, (b % c));
                 break;
             case 127344:  // 🅰 stores into <a> the bitwise and of <b> and <c>
                 a = data[pos++];
                 b = read;
                 c = read;
-                put(data, reg, a, b & c);
+                put(reg, a, b & c);
                 break;
             case 127358:  // 🅾 stores into <a> the bitwise or of <b> and <c>
                 a = data[pos++];
                 b = read;
                 c = read;
-                put(data, reg, a, b | c);
+                put(reg, a, b | c);
                 break;
             case 128220:  // 📜 read memory at address <b> and write it to <a>
                 a = data[pos++];
                 b = read;
-                put(data, reg, a, data[b]);
+                put(reg, a, data[b]);
                 break;
             case 128221:  // 📝 write the value from <b> into memory at address <a>
                 a = data[pos++];
@@ -196,7 +174,7 @@ int main() {
                 putwchar(read);
                 break;
             case 127929:  // 🎹 read a character from the terminal to <a>
-                put(data, reg, data[pos++], getwchar());
+                put(reg, data[pos++], getwchar());
                 break;
             case 128284:  // 🔜 ignore next character
                 pos++;
