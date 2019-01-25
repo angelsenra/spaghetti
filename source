@@ -1,0 +1,140 @@
+jmp :main
+
+$CONST sInitial:
+sInitial:
+    $Hello and welcome to my bowl of Spaghetti!
+    $What program do you want to load?
+    $0. Exit
+    $1. Game of Life
+    $2. Rock Paper Scissors
+    $>.0
+
+$CONST sInvalid:
+sInvalid:
+    $Invalid option, choose another one!
+    $>.0
+
+$CONST sFinished:
+sFinished:
+    $I really enjoyed this time spent with you.
+    $Come back soon!
+    $.0
+
+$CONST sRPS:
+sRPS:
+    $0. Exit
+    $1. Rock
+    $2. Paper
+    $3. Scissors
+    $.0
+
+$FUNCTION Input() -> (:8), :7:
+finput:
+    // Take the first letter of the input and store it at :8
+    in :8
+
+    .finputSkipFirst:
+        // Flush input
+        in :7
+        eq :7 :7 .10
+        jf :7 :.finputSkipFirst
+
+    ret
+
+$FUNCTION Print(:8) -> (), :7:
+fprint:
+    // Print every character starting at :8 and stopping at \0
+    // (first char is assumed not to be null)
+    rmem :7 :8
+
+    .fprintSkipFirst:
+        out :7
+        add :8 :8 .1
+        rmem :7 :8
+        jt :7 :.fprintSkipFirst
+
+    ret
+
+$SUBROUTINE GameOfLife:
+gameOfLife:
+    print ->Not .32 Yet .10 .10
+    jmp :main
+
+$SUBROUTINE RockPaperScissors, :1, :2, :3, :4, :5, :6, :7, :8:
+rockPaperScissors:
+    set :8 :sRPS
+    call :fprint
+
+    set :1 .0  // -3 move
+    set :2 .0  // -2 move
+    set :3 .0  // -1 move
+    set :4 .0  // Last winner
+    set :5 .0  // User count
+    set :6 .0  // AI count
+    jmp :.rpsLoop
+
+    $FUNCTION Winner(:5, :6, :7, :8) -> (:4, :5, :6):
+    .rpsWinner:
+        // Choose a winner based on both moves
+        ret
+
+    $FUNCTION AI(:1, :2, :3, :4, :5, :6) -> (:7):
+    .rpsAI:
+        // Choose a move based on previous moves
+        ret
+
+    .rpsLoop:
+        .rpsInputLoop:
+            out >
+            call :finput
+
+            eq :7 :8 0
+            jt :7 :main
+
+            eq :7 :8 1
+            jt :7 :.rpsPlay
+
+            eq :7 :8 2
+            jt :7 :.rpsPlay
+
+            eq :7 :8 3
+            jt :7 :.rpsPlay
+
+            set :8 :sInvalid
+            call :fprint
+            jmp :.rpsInputLoop
+
+        .rpsPlay:
+            call :.rpsAI
+            mod :8 :8 1
+            // TODO: print winner
+            // TODO: Add status to list of games
+            // TODO: Print count
+            jmp :.rpsInputLoop
+
+
+$MAIN, :7, :8:
+main:
+    set :8 :sInitial
+    call :fprint
+
+    .mainLoop:
+        call :finput
+
+        eq :7 :8 0
+        jt :7 :.mainEnd
+
+        eq :7 :8 1
+        jt :7 :gameOfLife
+
+        eq :7 :8 2
+        jt :7 :rockPaperScissors
+
+        set :8 :sInvalid
+        call :fprint
+        jmp :.mainLoop
+
+    .mainEnd:
+        set :8 :sFinished
+        call :fprint
+        halt
