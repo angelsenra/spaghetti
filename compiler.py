@@ -110,7 +110,7 @@ def process_tags(code):
             count += len(ins[1:].replace(r"\s", " ")) + 1
         elif arg[-1] == ":":  # It is a tag
             print("[%08d] [TAG] %s" % (count, arg[:-1]))
-            tags[":" + arg[:-1]] = chr(count)
+            tags["$" + arg[:-1] + "$"] = chr(count)
         elif arg == "print":
             print("[%08d] PRINT" % count)
             count += len("".join(args[1:])) * 2
@@ -164,21 +164,38 @@ def pre_compile(code):
     :return: Replaced code
     :rtype: str
     """
-    code_ = replace_str(REP_TABLE, code)
-    code_ = re.sub(r"(\n[ ]+)//.*", "", code_)  # Remove line comments
+    code_ = code
+    code_ = re.sub(r"\n[ ]+", "\n", code_)  # Remove indentation
+    code_ = re.sub(r"(\$.*?\$)\(\)", r"call \1", code_)
+    code_ = re.sub(r"(\$.*?\$)\((.+?)\)", r"\2\ncall \1", code_)
+    code_ = re.sub(r"(j[tf]) \((.*?) = (.*?)\) (\$.*?\$)",
+                   r"\2 = \3\n\1 \2 \4", code_)
+    code_ = re.sub(r"(.*?) = (.*?) == (.*?)", r"eq \1 \2 \3", code_)
+    code_ = re.sub(r"(.*?) = (.*?) \+ (.*?)", r"add \1 \2 \3", code_)
+    code_ = re.sub(r"(.*?) \+= (.*?)", r"add \1 \1 \2", code_)
+    code_ = re.sub(r"(.*?) = (.*?) \* (.*?)", r"mult \1 \2 \3", code_)
+    code_ = re.sub(r"(.*?) \*= (.*?)", r"mult \1 \1 \2", code_)
+    code_ = re.sub(r"(.*?) = (.*?) \% (.*?)", r"mod \1 \2 \3", code_)
+    code_ = re.sub(r"(.*?) \%= (.*?)", r"mod \1 \1 \2", code_)
+    code_ = re.sub(r"(.*?) = (.*?)", r"set \1 \2", code_)
+    print(code_)
+    code_ = replace_str(REP_TABLE, code_)  # Registers
+    code_ = re.sub(r"\n+//.*", "", code_)  # Remove line comments
     code_ = re.sub(r"([ ]+)//.*", "", code_)  # Remove inline comments
-    code_ = re.sub(r"(\n[ ]+)", "\n", code_)  # Remove indentation
     code_ = code_.replace("\n", "\\n").replace(" ", "\\s")  # \n and \s to raw
-    code_ = replace_num(code_)
+    code_ = replace_num(code_)  # Literal integers
     return code_
 
 
 def main():
-    with open("source", "r") as f:
+    with open("source.emoji", "r") as f:
         code = pre_compile(f.read())
     tags, tcount = process_tags(code)
     compiled, ccount = compile_code(code, tags)
     print(tcount, "vs", ccount)
+    for i in tags:
+        if i not in code:
+            print(f"{i} not in code")
     with open("bin", "w") as f:
         f.write(compiled)
 
