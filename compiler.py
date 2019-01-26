@@ -116,7 +116,7 @@ def process_tags(code):
             count += len("".join(args[1:])) * 2
         else:
             count += INS_SIZE[arg]
-    return tags
+    return tags, count
 
 
 def compile_code(code, tags):
@@ -152,7 +152,7 @@ def compile_code(code, tags):
             compiled.append(INS_TABLE[arg])
             for i in range(1, INS_SIZE[arg]):
                 compiled.append(args[i])
-    return "".join(compiled)
+    return "".join(compiled), sum(map(len, compiled))
 
 
 def pre_compile(code):
@@ -176,8 +176,9 @@ def pre_compile(code):
 def main():
     with open("source", "r") as f:
         code = pre_compile(f.read())
-    tags = process_tags(code)
-    compiled = compile_code(code, tags)
+    tags, tcount = process_tags(code)
+    compiled, ccount = compile_code(code, tags)
+    print(tcount, "vs", ccount)
     with open("bin", "w") as f:
         f.write(compiled)
 
