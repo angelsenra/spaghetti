@@ -109,6 +109,13 @@ main()
                 else
                     put(reg, a, 0);
                 break;
+            case 128170:  // 💪 set <a> to 1 if <b> is greater than <c>; set it to 0 otherwise
+                a = data[pos++];
+                if (read > read)
+                    put(reg, a, 1);
+                else
+                    put(reg, a, 0);
+                break;
             case 128640:  // 🚀 jump to <a>
                 pos = read;
                 break;
@@ -130,11 +137,22 @@ main()
                 c = read;
                 put(reg, a, (b + c));
                 break;
+            case 10006:  // ✖ store into <a> the product of <b> and <c>
+                a = data[pos++];
+                b = read;
+                c = read;
+                put(reg, a, (b * c));
+                break;
             case 10135:  // ➗ store into <a> the remainder of <b> divided by <c>
                 a = data[pos++];
                 b = read;
                 c = read;
-                put(reg, a, (b % c));
+                if (!c) {
+                    printf("Modulus by zero, exception incoming\n");
+                    printf("D>[%u](%lu)\n", ins, pos - 1);
+                }
+                // printf("%u %% %u  = %u\n", b, c, (b + c) % c);
+                put(reg, a, (b + c) % c);
                 break;
             case 127344:  // 🅰 stores into <a> the bitwise and of <b> and <c>
                 a = data[pos++];
@@ -148,13 +166,18 @@ main()
                 c = read;
                 put(reg, a, b | c);
                 break;
+            case 10134:  // ➖ stores bitwise inverse of <b> in <a>
+                a = data[pos++];
+                b = read;
+                put(reg, a, ~b);
+                break;
             case 128220:  // 📜 read memory at address <b> and write it to <a>
                 a = data[pos++];
                 b = read;
                 put(reg, a, data[b]);
                 break;
             case 128221:  // 📝 write the value from <b> into memory at address <a>
-                a = data[pos++];
+                a = read;
                 b = read;
                 data[a] = b;
                 break;
