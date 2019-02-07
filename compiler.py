@@ -188,7 +188,12 @@ def pre_compile(code):
     code_ = code
     code_ = re.sub(r"\n[ ]+", "\n", code_)  # Remove indentation
     code_ = re.sub(r"[ ]+\n", "\n", code_)  # Remove trailing spaces
-    code_ = re.sub(r"\n+//.*", "", code_)  # Remove line comments
+    code_ = re.sub(r"\n//.*", "", code_)  # Remove line comments
+
+    defines = dict(re.findall(r"#define (.*?) (.*?)\n", code_))
+    code_ = re.sub(r"#define .*?\n", "\n", code_)
+    code_ = replace_str(defines, code_)
+
     code_ = re.sub(r"([^\$].*?:) (\$[^\$]*?)", r"\1\n\2", code_)
     code_ = re.sub(r"(\$.*?\$)\(\)", r"call \1", code_)
     code_ = re.sub(r"(\$.*?\$)\((.+?)\)", r"\2\ncall \1", code_)
@@ -226,7 +231,7 @@ def print_warnings(tags, compiled, code, tcount, ccount):
         print(f"tag {i} not defined")
 
 
-def main(debug=1):
+def main(debug=0):
     with open("source.emoji", "r") as f:
         code = pre_compile(f.read())
     tags, tcount = process_tags(code, debug=debug)

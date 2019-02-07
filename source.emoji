@@ -1,8 +1,7 @@
 jmp $main$
-
-exception:
-$EXCEPTION, halting...
-$.0
+$THE GAME
+$
+$
 
 $FUNCTION finput() -> (:8)
 finput:
@@ -80,9 +79,28 @@ fprint_number:
     fprint_number.unit: $.1
     fprint_number.number: $.0
 
+$FUNCTION fcopy(:6, :7, :8) -> ()
+fcopy:
+    // Copy values of pointer :7 to :8. Size :6
+    :1 = .0
+
+    fcopy.loop:
+        rmem :5 :7
+        wmem :8 :5
+
+        :1 += .1
+        :7 += .1
+        :8 += .1
+        jt (:2 = :6 > :1) $fcopy.loop$
+        ret
+
 $SUBROUTINE GameOfLife
 gol:
     $fprint$(:8 = $gol.init$)
+    :6 = GOL_SIZE
+    :7 = $gol.board_content$
+    :8 = $gol.board0$
+    $fcopy$()
     jmp $gol.loop$
 
     gol.init:
@@ -92,10 +110,18 @@ gol:
     gol.invalid:
         $Invalid option, choose another one!
         $.0
+    #define GOL_W .40
+    #define GOL_MW .39
+    // GOL_H must be a divisor of GOL_W
+    #define GOL_H .20
+    #define GOL_SIZE .800
+    gol.board_content:
+        // "".join(" #"[random.random() > .5] for i in range(800)) + "."
+        $# ## # # ####### ###    #          #   ## # #  ##  #  #   # ## # ##  #    #   ## ### #### ## ### #  # # ### # # # #  ###### #  #  ###     ## #####  ####  #  #   #   ### ####  # ##   # ## ## # # ####  ##      # ##  #######   # # ####  ##        #  #   # ##  ###  #  # ###  #  # #  ## #   # #  # ###   #  # # ### ###  ####   # #  #  #  ### ##    #  ####  #   ##  #  #### ## ##### # #      # ## ## # #      ##   ####  ##   #    # #  #  # ## #### #   ### # #    ### ##   ### ##   # ##   # ###    ###### ## #  ######### #   # ## #    #  # # #  ##### #  #  ## ## ### ###### #  ## #######   # ## #   ### ## ##  ### ### #   # ### #   #  #  ## #   #####    ##      #   # # ##   #  ## #  #### #  #   ###   ## ##   ##  #  # ### #   ##   #  #  #  # ## ###  # ### ####  #   ### # #   ##    #   #   #      ###     . 
     gol.board0:
-        $###             .
+        $                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       ..
     gol.board1:
-        $0000111122223333.
+        $                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       .                                       ..
     gol.board:
         {$gol.board0$$gol.board1$
 
@@ -105,12 +131,7 @@ gol:
         jt (:7 = :8 == 0) $main$
         jf (:7 = :8 == .10) $gol.loop.invalid$
 
-        print board0 .10
         $gol.fprint_board$()
-        $gol.fswap_boards$()
-        print board1 .10
-        $gol.fprint_board$()
-        $gol.fswap_boards$()
         
         $gol.fnext$()
         $gol.fswap_boards$()
@@ -121,18 +142,32 @@ gol:
             $fprint$(:8 = $gol.invalid$)
             jmp $gol.loop$
 
+    $FUNCTION gol.fwbars() -> ()
+    gol.fwbars:
+        // Prints as many bars as GOL_W
+        :1 = .0
+
+        gol.fwbars.loop:
+            out -
+            :1 += .1
+            jt (:2 = GOL_W > :1) $gol.fwbars.loop$
+            ret
+
     $FUNCTION gol.fnext() -> ()
     gol.fnext:
         // Determines the next board based on the actual one
         //  and Conway's Game of Life rules
         :8 = $gol.board$
         rmem :7 :8
+        :3 = :8
+        :8 = :3
         :8 += .1
         rmem :8 :8
         :1 = .0
 
         gol.fnext.loop:
             $gol.fget_neighbours$()
+
             :4 = :7 + :1
             :6 = :8 + :1
             rmem :4 :4
@@ -150,111 +185,78 @@ gol:
 
             gol.fnext.loop.continue:
             :1 += .1
-            jt (:6 = .16 > :1) $gol.fnext.loop$
+            jt (:6 = GOL_SIZE > :1) $gol.fnext.loop$
 
         ret
 
     $FUNCTION gol.fget_neighbours(:1) -> (:2)
     gol.fget_neighbours:
-        // column :1, row :2
-        // Get number of neighbours
-        :6 = $gol.board$
-        rmem :6 :6
         :2 = .0
 
-        :4 = ~.4
-        :5 = ~.1
+        // :6 = :1 // GOL_W
+        :3 = GOL_MW
+        :6 = .0
+        jt (:4 = :1 > :3) $gol.fget_neighbours.divide_loop$
+        gol.fget_neighbours.divide_loop.end:
 
-        // NW
-        :3 = :1 + :4
-        :3 += :5
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
-
-        // N
-        :3 = :1 + :4
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
-
-        // NE
-        :3 = :1 + :4
-        :3 += .1
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
-
-        //W
-        :3 = :1 + :5
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
-
-        //E
+        // N. -> :5 = (:6 - 1) % GOL_H * GOL_W
+        :5 = :6 + GOL_MW
+        :5 %= GOL_H
+        :5 *= GOL_W
+        // N  -> :3 = :1 % GOL_W
+        :3 = :1 % GOL_W
+        $gol.fget_neighbours.fadd$()
+        // .W -> :3 = (:1 - 1) % GOL_W
+        :3 = :1 + GOL_MW
+        :3 %= GOL_W
+        $gol.fget_neighbours.fadd$()
+        // .E -> :3 = (:1 + 1) % GOL_W
         :3 = :1 + .1
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
+        :3 %= GOL_W
+        $gol.fget_neighbours.fadd$()
 
-        // SW
-        :3 = :1 + .4
-        :3 += :5
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
+        //  . -> :5 = (:6) * GOL_W
+        :5 = :6 * GOL_W
+        // .W -> :3 = (:1 - 1) % GOL_W
+        :3 = :1 + GOL_MW
+        :3 %= GOL_W
+        $gol.fget_neighbours.fadd$()
+        // .E -> :3 = (:1 + 1) % GOL_W
+        :3 = :1 + .1
+        :3 %= GOL_W
+        $gol.fget_neighbours.fadd$()
 
-        // S
-        :3 = :1 + .4
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
+        // S. -> :5 = (:6 + 1) % GOL_H * GOL_W
+        :5 = :6 + .1
+        :5 %= GOL_H
+        :5 *= GOL_W
+        // S  -> :3 = :1 % GOL_W
+        :3 = :1 % GOL_W
+        $gol.fget_neighbours.fadd$()
+        // .W -> :3 = (:1 - 1) % GOL_W
+        :3 = :1 + GOL_MW
+        :3 %= GOL_W
+        $gol.fget_neighbours.fadd$()
+        // .E -> :3 = (:1 + 1) % GOL_W
+        :3 = :1 + .1
+        :3 %= GOL_W
+        $gol.fget_neighbours.fadd$()
 
-        // SE
-        :3 = :1 + .4
-        :3 += .1
-        :3 %= .16
-        $fprint_number$(:8 = :3)
-        out :
-        :3 += :6
-        rmem :3 :3
-        :3 = :3 == #
-        :2 += :3
-
-        :6 = :8
-        $fprint_number$(:8 = :1)
-        print ->
-        $fprint_number$(:8 = :2)
-        out ,
-        :8 = :6
         ret
+
+        gol.fget_neighbours.fadd:
+            :4 = :5 + :3
+            :4 += :7
+            rmem :4 :4
+            :4 = :4 == #
+            :2 += :4
+            ret
+
+        gol.fget_neighbours.divide_loop:
+        :6 += .1
+        :3 += GOL_W
+        jt (:4 = :1 > :3) $gol.fget_neighbours.divide_loop$
+        jmp $gol.fget_neighbours.divide_loop.end$
 
     $FUNCTION gol.fswap_boards() -> ()
     gol.fswap_boards:
@@ -270,24 +272,33 @@ gol:
 
     $FUNCTION gol.fprint_board() -> ()
     gol.fprint_board:
-        // Print gol.board as a grid
+        // Print gol.board[0] as a grid
+        out /
+        $gol.fwbars$()
+        print \ .10
+
         :8 = $gol.board$
         rmem :8 :8
         :5 = .0
 
         gol.fprint_board.loop:
             :6 = .0
+            out |
 
             gol.fprint_board.loop.loop:
                 rmem :7 :8
                 out :7
                 :6 += .1
                 :8 += .1
-                jt (:7 = .4 > :6) $gol.fprint_board.loop.loop$
-                out .10
+                jt (:7 = GOL_W > :6) $gol.fprint_board.loop.loop$
+                print | .10
 
             :5 += .1
-            jt (:7 = .4 > :5) $gol.fprint_board.loop$
+            jt (:7 = GOL_H > :5) $gol.fprint_board.loop$
+
+        out \
+        $gol.fwbars$()
+        print / .10
 
         ret
 
@@ -296,6 +307,15 @@ rps:
     $fprint$(:8 = $rps.init$)
     jmp $rps.loop$
 
+    rps.init:
+        $0. Exit
+        $1. Rock
+        $2. Paper
+        $3. Scissors
+        $.0
+    rps.invalid:
+        $Invalid option, choose another one!
+        $.0
     rps.game0: $.0
     rps.last_winner: $.0
     rps.count.tie: $.0
@@ -313,15 +333,6 @@ rps:
     rps.win.human: $HUMAN wins.0
     rps.win:
         {$rps.win.tie$$rps.win.pc$$rps.win.human$
-    rps.init:
-        $0. Exit
-        $1. Rock
-        $2. Paper
-        $3. Scissors
-        $.0
-    rps.invalid:
-        $Invalid option, choose another one!
-        $.0
 
     rps.loop:
         out >
@@ -394,6 +405,154 @@ rps:
         $fprint$()
         ret
 
+$SUBROUTINE TicTacToe
+ttt:
+    $fprint$(:8 = $ttt.init$)
+    :6 = .9
+    :7 = $ttt.board_content$
+    :8 = $ttt.board$
+    $fcopy$()
+    jmp $ttt.loop$
+
+    ttt.init:
+        $0. Exit
+        $N. Place a cross at Nth position
+        $1|2|3
+        $4|5|6
+        $7|8|9
+        $.0
+    ttt.invalid:
+        $Invalid option, choose another one!
+        $.0
+    ttt.already:
+        $That position has already been taken
+        $.0
+    ttt.board_content:
+        $.........
+    ttt.board:
+        $.........
+    ttt.loop:
+        $ttt.fprint_board$()
+        out >
+        $finput$()
+
+        jt (:7 = :8 == 0) $main$
+        jt (:7 = 0 > :8) $ttt.loop.invalid$
+        jt (:7 = :8 > 9) $ttt.loop.invalid$
+
+        :8 %= 1
+        :7 = $ttt.board$ + :8
+        rmem :6 :7
+        jf (:6 = :6 == .) $ttt.loop.already$
+
+        wmem :7 X
+        $ttt.fai$()
+
+        jmp $ttt.loop$
+
+        ttt.loop.invalid:
+            $fprint$(:8 = $ttt.invalid$)
+            jmp $ttt.loop$
+
+        ttt.loop.already:
+            $fprint$(:8 = $ttt.already$)
+            jmp $ttt.loop$
+
+    $FUNCTION ttt.fai() -> ()
+    ttt.fai:
+        // AI chooses a spot and writes an O on it
+        :8 = $ttt.board$
+
+        :8 = $ttt.board$ + .4
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore4$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore4:
+        :8 = $ttt.board$ + .2
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore2$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore2:
+        :8 = $ttt.board$ + .6
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore6$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore6:
+        :8 = $ttt.board$ + .0
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore0$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore0:
+        :8 = $ttt.board$ + .1
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore1$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore1:
+        :8 = $ttt.board$ + .7
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore7$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore7:
+        :8 = $ttt.board$ + .3
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore3$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore3:
+        :8 = $ttt.board$ + .5
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore5$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore5:
+        :8 = $ttt.board$ + .8
+        rmem :7 :8
+        jf (:7 = :7 == .) $ttt.fai.ignore8$
+        wmem :8 O
+        ret
+
+        ttt.fai.ignore8:
+        ret
+
+    $FUNCTION ttt.fprint_board() -> ()
+    ttt.fprint_board:
+        // Print ttt.board[0] as a grid
+        print .32 - .32 - .32 - .10
+        :8 = $ttt.board$
+        :5 = .0
+
+        ttt.fprint_board.loop:
+            :6 = .0
+
+            ttt.fprint_board.loop.loop:
+                rmem :7 :8
+                out |
+                out :7
+                :6 += .1
+                :8 += .1
+                jt (:7 = .3 > :6) $ttt.fprint_board.loop.loop$
+                print | .10
+
+            :5 += .1
+            jt (:7 = .3 > :5) $ttt.fprint_board.loop$
+        print .32 - .32 - .32 - .10
+
+        ret
+
 $Main
 main:
     $fprint$(:8 = $main.init$)
@@ -404,6 +563,7 @@ main:
         jt (:7 = :8 == 0) $main.exit$
         jt (:7 = :8 == 1) $gol$  // GameOfLife
         jt (:7 = :8 == 2) $rps$  // RockPaperScissors
+        jt (:7 = :8 == 3) $ttt$  // TicTacToe
 
         $fprint$(:8 = $main.invalid$)
         jmp $main.loop$
@@ -418,6 +578,7 @@ main:
         $0. Exit
         $1. Game of Life
         $2. Rock Paper Scissors
+        $3. Tic Tac Toe
         $>.0
     main.invalid:
         $Invalid option, choose another one!
