@@ -1,0 +1,41 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+name: Emoji Source
+file_extensions: [emoji]
+scope: source.emoji
+contexts:
+  main:
+    - match: '(\$)((.*?))(\$)'  # Tag reference
+      captures:
+        1: punctuation.definition.tag.begin
+        2: markup.inserted
+        3: markup.bold
+        4: punctuation.definition.tag.end
+    - match: '(([^\$][^ ]*?)):$'  # Tag declaration
+      captures:
+        1: variable.function
+        2: markup.bold
+    - match: '^[ ]*(\$)([^\$]*?)$'  # String
+      captures:
+        1: punctuation.definition.string.begin
+        2: string.quoted.other
+    - match: '^(([^\$].*?)): (\$)([^\$]*?)$'  # Tag + string
+      captures:
+        1: variable.function
+        2: markup.bold
+        3: punctuation.definition.string.begin
+        4: string.quoted.other
+    - match: '[ ]*(//)(.*?)$'  # Comment
+      captures:
+        1: punctuation.definition.comment
+        2: comment.line
+    - match: '([\.:]\d+)'  # Constant
+      captures:
+        1: constant.other
+    - match: '^[ ]*(set|push|pop|eq|gt|jmp|jt|jf|add|mult|mod|and|or|not|rmem|wmem|call|out|in) '
+      captures:
+        1: keyword.other
+    - match: '(halt|ret|noop)\n'
+      captures:
+        1: keyword.other
